@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "real-useful-newtabs",
+  "version": "0.1.0",
+  "description": "A focused Chrome new tab page built with egui.",
+  "minimum_chrome_version": "102",
+  "permissions": ["bookmarks", "contextMenus", "favicon", "tabs", "tabGroups", "storage"],
+  "background": {
+    "service_worker": "service_worker.js",
+    "type": "module"
+  },
+  "chrome_url_overrides": {
+    "newtab": "index.html"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
+  }
+}

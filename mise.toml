@@ -1,0 +1,58 @@
+[tools]
+rust = { version = "stable", targets = ["wasm32-unknown-unknown"], components = ["clippy", "rustfmt"] }
+node = "lts"
+"cargo:wasm-bindgen-cli" = { version = "0.2.129", locked = true }
+
+[tasks.check]
+description = "Check native and WebAssembly targets"
+run = [
+    "cargo check --all-targets",
+    "cargo check --target wasm32-unknown-unknown",
+]
+
+[tasks.test]
+description = "Run the Rust and JavaScript test suites"
+run = [
+    "cargo test",
+    "node --test extension/*.test.mjs",
+]
+
+[tasks.dev]
+description = "Launch the native development build"
+run = "cargo run"
+
+[tasks.build-extension]
+alias = "all"
+description = "Build the debug Chrome extension into dist/"
+run = [
+    "cargo build --target wasm32-unknown-unknown",
+    "mkdir -p dist",
+    "wasm-bindgen --target web --no-typescript --out-dir dist --out-name real-useful-newtabs target/wasm32-unknown-unknown/debug/real-useful-newtabs.wasm",
+    "cp extension/favicon.svg extension/index.html extension/manifest.json extension/bootstrap.js extension/service_worker.js extension/tab_group_rules.mjs extension/newtab_position.mjs extension/newtab_reuse.mjs dist/",
+]
+
+[tasks.release]
+alias = "build-extension-release"
+description = "Build the release Chrome extension into dist/"
+run = [
+    "cargo build --release --target wasm32-unknown-unknown",
+    "mkdir -p dist",
+    "wasm-bindgen --target web --no-typescript --out-dir dist --out-name real-useful-newtabs target/wasm32-unknown-unknown/release/real-useful-newtabs.wasm",
+    "cp extension/favicon.svg extension/index.html extension/manifest.json extension/bootstrap.js extension/service_worker.js extension/tab_group_rules.mjs extension/newtab_position.mjs extension/newtab_reuse.mjs dist/",
+]
+
+[tasks.fmt]
+description = "Format Rust sources"
+run = "cargo fmt --all"
+
+[tasks.fmt-check]
+description = "Check Rust formatting"
+run = "cargo fmt --all -- --check"
+
+[tasks.clippy]
+description = "Lint all native targets and features"
+run = "cargo clippy --all-targets --all-features -- -D warnings"
+
+[tasks.clean]
+description = "Remove generated build artifacts"
+run = ["cargo clean", "rm -rf dist"]

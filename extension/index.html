@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'wasm-unsafe-eval'; object-src 'self'">
+    <title>New Tab</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <style>
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            background: #0a0a0a;
+        }
+
+        canvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        #loading_status {
+            position: absolute;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            color: #8c8c8c;
+            font: 13px system-ui, sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="newtabs_canvas" tabindex="0"></canvas>
+    <div id="loading_status">Loading real-useful-newtabs…</div>
+    <script type="module" src="bootstrap.js"></script>
+</body>
+</html>

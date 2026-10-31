@@ -1,0 +1,76 @@
+name: Release extension
+
+on:
+  push:
+    tags:
+      - '**'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchains with mise
+        uses: jdx/mise-action@v4
+
+      - name: Check and test
+        run: |
+          mise run check
+          mise run test
+
+      - name: Build optimized extension
+        run: mise run release
+
+      - name: Package CRX and tarball
+        env:
+          TAG: ${{ github.ref_name }}
+          CRX_PRIVATE_KEY: ${{ secrets.CRX_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          # Tags may contain slashes; asset names must be single filenames.
+          name="real-useful-newtabs-${TAG//\//-}"
+          mkdir -p artifacts
+          tar -czf "artifacts/$name.tgz" -C dist .
+
+          # Keep signing material outside dist/ and the published artifacts.
+          key="$RUNNER_TEMP/extension-key.pem"
+          trap 'rm -f "$key"' EXIT
+          umask 077
+          if [[ -n "$CRX_PRIVATE_KEY" ]]; then
+            printf '%s\n' "$CRX_PRIVATE_KEY" > "$key"
+          else
+            echo '::warning::CRX_PRIVATE_KEY is unset; this release will have a new extension ID.'
+            openssl genrsa -out "$key" 2048
+          fi
+          google-chrome --headless --no-sandbox --no-message-box \
+            --user-data-dir="$RUNNER_TEMP/chrome-pack" \
+            --pack-extension="$GITHUB_WORKSPACE/dist" \
+            --pack-extension-key="$key"
+          test -s dist.crx
+          mv dist.crx "artifacts/$name.crx"
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" artifacts/*.crx artifacts/*.tgz --clobber
+          else
+            gh release create "$TAG" artifacts/*.crx artifacts/*.tgz \
+              --verify-tag --title "$TAG" --generate-notes
+          fi
