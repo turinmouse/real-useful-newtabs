@@ -116,6 +116,8 @@ DESIGN.md     界面行为与实现约定
 
 ## Tag 发布
 
+推送到 `master` 时会运行检查、测试和优化编译，建立 mise 工具缓存及 Cargo 依赖和编译缓存。Tag 构建可以复用默认分支的缓存；仅 tag 会打包并发布 Release 附件。
+
 推送任意 tag（例如 `git push origin v0.1.0`）后，GitHub Actions 会通过 mise 执行检查、测试和优化编译，并创建 GitHub Release，附带 `real-useful-newtabs-<tag>.crx` 和 `.tgz`。重新运行工作流会替换已有 Release 中的同名附件。`.tgz` 内是未打包扩展，解压后可通过 `chrome://extensions` 加载。
 
 如需保持不同版本的 CRX 扩展 ID 一致，请将 PEM 格式的 RSA 私钥配置为仓库 Actions Secret `CRX_PRIVATE_KEY`。未配置时，每次运行使用临时密钥，扩展 ID 会变化。签名私钥不会包含在发布附件中。扩展版本号取自 `extension/manifest.json`，发布新版本 tag 前请先更新该文件。

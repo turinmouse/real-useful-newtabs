@@ -116,6 +116,8 @@ DESIGN.md     UI behavior and implementation guidelines
 
 ## Tagged releases
 
+Pushes to `master` run checks, tests, and an optimized build to populate the mise tool cache and Cargo dependency/build caches. Tag builds can restore the default-branch caches; only tags package and publish release assets.
+
 Pushing any tag (for example, `git push origin v0.1.0`) triggers GitHub Actions to check, test, and build the optimized extension using mise. It creates a GitHub Release with `real-useful-newtabs-<tag>.crx` and `.tgz` assets; rerunning the workflow replaces those assets in an existing release. The tarball contains the unpacked extension; extract it and load the directory through `chrome://extensions`.
 
 To preserve the CRX extension ID between releases, set the repository Actions secret `CRX_PRIVATE_KEY` to a PEM-encoded RSA private key. Without it, each run uses a temporary key and produces a new extension ID. Signing keys are never included in release assets. The extension version comes from `extension/manifest.json`; update it before tagging a new version.

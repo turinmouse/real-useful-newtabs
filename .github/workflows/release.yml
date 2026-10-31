@@ -1,7 +1,10 @@
-name: Release extension
+name: Build and release extension
 
 on:
   push:
+    # Populate default-branch caches so future tags can restore them.
+    branches:
+      - master
     tags:
       - '**'
 
@@ -24,6 +27,15 @@ jobs:
 
       - name: Install toolchains with mise
         uses: jdx/mise-action@v4
+        with:
+          cache: true
+
+      - name: Cache Cargo dependencies and build outputs
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: extension
+          cache-targets: true
+          save-if: ${{ github.ref == 'refs/heads/master' }}
 
       - name: Check and test
         run: |
@@ -34,6 +46,7 @@ jobs:
         run: mise run release
 
       - name: Package CRX and tarball
+        if: startsWith(github.ref, 'refs/tags/')
         env:
           TAG: ${{ github.ref_name }}
           CRX_PRIVATE_KEY: ${{ secrets.CRX_PRIVATE_KEY }}
@@ -62,6 +75,7 @@ jobs:
           mv dist.crx "artifacts/$name.crx"
 
       - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
