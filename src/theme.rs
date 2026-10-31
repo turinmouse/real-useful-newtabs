@@ -13,6 +13,10 @@ pub const MAIN_FONT_NAME: &str = "InterNerdFont";
 pub const CJK_FONT_NAME: &str = "NotoSansSC";
 
 pub fn apply(ctx: &egui::Context) {
+    // The web backend cannot apply native window decoration themes.
+    #[cfg(target_arch = "wasm32")]
+    ctx.options_mut(|options| options.sync_window_theme = false);
+
     configure_fonts(ctx);
 
     for theme in [egui::Theme::Dark, egui::Theme::Light] {
