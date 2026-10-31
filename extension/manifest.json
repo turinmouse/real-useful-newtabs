@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "real-useful-newtabs",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A focused Chrome new tab page built with egui.",
   "minimum_chrome_version": "102",
   "permissions": ["bookmarks", "contextMenus", "favicon", "tabs", "tabGroups", "storage"],
