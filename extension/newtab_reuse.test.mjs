@@ -25,7 +25,12 @@ function fixture(initial = [], enabled = true) {
                 return structuredClone(tabs.get(id));
             },
             query: async ({ windowId }) => [...tabs.values()].filter((t) => t.windowId === windowId).map((t) => structuredClone(t)),
-            update: async (id) => { actions.push(["activate", id]); },
+            update: async (id, updateProperties) => { actions.push(["update", id, updateProperties]); },
+            move: async (id, { index }) => {
+                actions.push(["move", id, index]);
+                const t = tabs.get(id);
+                if (t) t.index = index;
+            },
             remove: async (id) => { actions.push(["remove", id]); tabs.delete(id); },
         },
     };
@@ -34,16 +39,27 @@ function fixture(initial = [], enabled = true) {
 }
 
 test("reuses the most recently accessed new tab in the same window", async () => {
-    const f = fixture([tab(1, { lastAccessed: 10 }), tab(2, { lastAccessed: 20, pinned: true }), tab(3, { windowId: 2, lastAccessed: 30 })]);
+    const f = fixture([tab(1, { lastAccessed: 10 }), tab(2, { lastAccessed: 20 }), tab(3, { windowId: 2, lastAccessed: 30 })]);
     await f.create(tab(4));
-    assert.deepEqual(f.actions, [["activate", 2], ["remove", 4]]);
+    assert.deepEqual(f.actions, [["remove", 2], ["move", 4, 2]]);
+    assert.ok(!f.tabs.has(2));
+    assert.ok(f.tabs.has(4));
+});
+
+test("pinned new tabs are not reused or removed", async () => {
+    const f = fixture([tab(1, { lastAccessed: 20, pinned: true }), tab(2, { lastAccessed: 10 })]);
+    await f.create(tab(3));
+    assert.deepEqual(f.actions, [["remove", 2], ["move", 3, 2]]);
+    assert.ok(f.tabs.has(1));
+    assert.ok(!f.tabs.has(2));
+    assert.ok(f.tabs.has(3));
 });
 
 test("activation events supply recency on older Chrome versions", async () => {
     const f = fixture([tab(1), tab(2)]);
     await f.api.tabs.onActivated.fire({ tabId: 2 });
     await f.create(tab(3));
-    assert.deepEqual(f.actions, [["activate", 2], ["remove", 3]]);
+    assert.deepEqual(f.actions, [["remove", 2], ["move", 3, 2]]);
 });
 
 test("disabled setting, missing candidate, other windows and ordinary URLs preserve new tabs", async () => {
@@ -68,7 +84,7 @@ test("waits for an initially missing URL but ignores navigation of preexisting t
     assert.deepEqual(f.actions, []);
     f.tabs.get(3).pendingUrl = "chrome-extension://test/index.html#canvas";
     await f.api.tabs.onUpdated.fire(3);
-    assert.deepEqual(f.actions, [["activate", 1], ["remove", 3]]);
+    assert.deepEqual(f.actions, [["remove", 1], ["move", 3, 1]]);
     f.tabs.get(2).url = N;
     await f.api.tabs.onUpdated.fire(2);
     assert.ok(f.tabs.has(2));
@@ -77,14 +93,20 @@ test("waits for an initially missing URL but ignores navigation of preexisting t
 test("rapid creation keeps one new tab instead of closing every candidate", async () => {
     const f = fixture();
     await Promise.all([f.create(tab(1)), f.create(tab(2)), f.create(tab(3))]);
-    assert.deepEqual([...f.tabs.keys()], [1]);
-    assert.deepEqual(f.actions, [["activate", 1], ["remove", 2], ["activate", 1], ["remove", 3]]);
+    assert.deepEqual([...f.tabs.keys()], [3]);
+    assert.deepEqual(f.actions, [["remove", 1], ["move", 2, 1], ["remove", 2], ["move", 3, 1]]);
 });
 
-test("navigation away during activation prevents closing the newly created tab", async () => {
+test("navigation away during lookup prevents closing the existing tab", async () => {
     const f = fixture([tab(1)]);
-    f.api.tabs.update = async () => { f.tabs.get(2).pendingUrl = "https://example.com"; };
+    const get = f.api.tabs.get;
+    f.api.tabs.get = async (id) => {
+        const t = await get(id);
+        if (id === 2) t.pendingUrl = "https://example.com";
+        return t;
+    };
     await f.create(tab(2));
+    assert.ok(f.tabs.has(1));
     assert.ok(f.tabs.has(2));
     assert.deepEqual(f.actions, []);
 });
@@ -97,7 +119,7 @@ test("a candidate that closes during lookup is skipped", async () => {
         return get(id);
     };
     await f.create(tab(3));
-    assert.deepEqual(f.actions, [["activate", 2], ["remove", 3]]);
+    assert.deepEqual(f.actions, [["remove", 2], ["move", 3, 2]]);
 });
 
 test("existing duplicates are untouched on installation and popup windows are excluded", async () => {
